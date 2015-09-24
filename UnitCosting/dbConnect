@@ -1,0 +1,71 @@
+import vertica_python, json
+
+
+conn_info = {'host': '127.0.0.1',
+'port': 5433,
+'user': 'dbadmin',
+'password': 'root',
+'database': 'VMart'}
+
+# simple connection, with manual close
+connection = vertica_python.connect(conn_info)
+cur = connection.cursor()
+
+
+#create empty dictionary to hold all proc codes
+procDict = {}
+
+cur.execute("select  distinct(product_key) from product_dimension limit 100 ")
+for row in cur.iterate():
+    procDict[row[0]] = ""
+
+print(procDict)
+
+
+
+
+#Source from sales where SQL is put in
+
+SQL_String = {
+    1 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '1' group by product_key",
+    2 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '2' group by product_key",
+    3 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '3' group by product_key",
+    4 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '4' group by product_key",
+    5 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '5' group by product_key",
+    6 : "Select product_key, sum(sales_quantity) from store.store_sales_fact Where product_key = '6' group by product_key",
+}
+
+
+SQL_Count = {}
+#interate and execute SQL Queries
+for proc, value in SQL_String.iteritems():
+    cur.execute(value)
+    SQL_Count[proc] = cur.fetchone()[1]
+    print(SQL_Count[proc])
+
+
+
+
+#Manual volume
+cur.execute("select product_key, sum(sales_quantity) from online_sales.online_sales_fact group by product_key order by product_key asc limit 100;")
+
+
+Man_Count = {}
+for row in cur.iterate():
+    Man_Count[row[0]] = row[1]
+print(Man_Count)
+
+def mergeCounts(count1 = {}, count2 = {}, proc = {}):
+    for i in proc.keys():
+        print("Processing for key", i)
+        proc[i] = count1.setdefault(i, 0) + count2.setdefault(i, 0)
+
+    return proc
+
+
+
+Result = mergeCounts(SQL_Count, Man_Count, procDict)
+
+#print(json(Result))
+
+print(json.json.JSONEncoder(Result))
